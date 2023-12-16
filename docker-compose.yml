@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  sol-balance-monitor:
+    image: joshteng/sol-balance-monitor:latest
+    environment:
+      - INTERVAL
+      - MINIMUM_LAMPORTS
+      - RPC
+      - ADDRESS
+      - DISCORD_WEBHOOK_URL
+    restart: always

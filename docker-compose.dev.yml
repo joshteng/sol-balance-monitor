@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    environment:
+      - INTERVAL
+      - MINIMUM_LAMPORTS
+      - RPC
+      - ADDRESS
+      - DISCORD_WEBHOOK_URL
+    restart: always
