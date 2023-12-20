@@ -16,10 +16,27 @@ import (
 )
 
 func main() {
-	walletAddress := os.Getenv("ADDRESS")
-	publicKey, err := solana.PublicKeyFromBase58(walletAddress)
+	walletAddressesStr := os.Getenv("ADDRESSES")
+	if walletAddressesStr == "" {
+		fmt.Println("ADDRESSES environment variable is not set")
+		return
+	}
+
+	var walletAddresses []string
+	err := json.Unmarshal([]byte(walletAddressesStr), &walletAddresses)
 	if err != nil {
-		log.Fatalf("Invalid wallet address: %s", err)
+		fmt.Printf("Error parsing ADDRESSES: %v\n", err)
+		return
+	}
+
+	var publicKeys []solana.PublicKey
+	for _, address := range walletAddresses {
+		publicKey, err := solana.PublicKeyFromBase58(address)
+		if err != nil {
+			log.Fatalf("Invalid wallet address: %s", err)
+		}
+
+		publicKeys = append(publicKeys, publicKey)
 	}
 
 	rpcUrl := os.Getenv("RPC")
@@ -33,38 +50,48 @@ func main() {
 		log.Fatalf("Error converting MINIMUM_LAMPORTS to integer: %s", err)
 	}
 
-	webhookUrl := os.Getenv("DISCORD_WEBHOOK_URL")
-	if rpcUrl == "" {
-		log.Fatalf("Missing Webhook URL")
-	}
-
 	intervalStr := os.Getenv("INTERVAL")
 	interval, err := strconv.ParseUint(intervalStr, 10, 64)
 	if err != nil {
 		log.Fatalf("invalid INTERVAL: %s", err)
 	}
 
+	for _, publicKey := range publicKeys {
+		checkBalance(rpcUrl, publicKey, minBalance)
+	}
+
 	ticker := time.NewTicker(time.Duration(interval) * time.Second)
 	defer ticker.Stop()
 
 	for range ticker.C {
-		checkBalance(rpcUrl, publicKey, minBalance, webhookUrl)
+		for _, publicKey := range publicKeys {
+			checkBalance(rpcUrl, publicKey, minBalance)
+		}
 	}
-
 }
 
-func checkBalance(rpcUrl string, publicKey solana.PublicKey, minBalance uint64, webhookUrl string) {
+func checkBalance(rpcUrl string, publicKey solana.PublicKey, minBalance uint64) {
 	client := rpc.New(rpcUrl)
 
 	balance, err := client.GetBalance(context.Background(), publicKey, rpc.CommitmentConfirmed)
 	if err != nil {
 		log.Printf("Error retrieving balance: %s", err)
 	} else {
-		fmt.Printf("Balance of %s is %d lamports\n", publicKey.String(), balance.Value)
+		solBalance := lamportsToSol(balance.Value)
+		fmt.Printf("Balance of %s is %f SOL\n", publicKey.String(), solBalance)
 
 		if balance.Value < minBalance {
-			message := fmt.Sprintf("LOW BALANCE Balance of %s is %d lamports\n", publicKey.String(), balance.Value)
-			sendDiscordWebhook(webhookUrl, message)
+			summary := fmt.Sprintf("KEEPER LOW BALANCE %s\n", publicKey.String())
+			message := fmt.Sprintf("%s Left %f SOL\n", publicKey.String(), solBalance)
+			discordWebhookUrl := os.Getenv("DISCORD_WEBHOOK_URL")
+			if discordWebhookUrl != "" {
+				sendDiscordWebhook(discordWebhookUrl, message)
+			}
+
+			betterStackBearer := os.Getenv("BETTERSTACK_TOKEN")
+			if betterStackBearer != "" {
+				createBetterStackIncident(betterStackBearer, summary, message)
+			}
 		}
 	}
 }
@@ -81,4 +108,55 @@ func sendDiscordWebhook(webhookURL string, message string) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func createBetterStackIncident(bearer string, summary string, description string) error {
+	url := "https://uptime.betterstack.com/api/v2/incidents"
+	requesterEmail := "bot@raccoons.dev"
+
+	// Struct to hold the request data
+	requestData := struct {
+		Summary        string `json:"summary"`
+		RequesterEmail string `json:"requester_email"`
+		Description    string `json:"description"`
+	}{
+		Summary:        summary,
+		RequesterEmail: requesterEmail,
+		Description:    description,
+	}
+
+	// Marshal the struct into JSON
+	jsonData, err := json.Marshal(requestData)
+	if err != nil {
+		return fmt.Errorf("error marshalling request data: %w", err)
+	}
+
+	// Create a new request
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("error creating request: %w", err)
+	}
+
+	// Add headers to the request
+	req.Header.Set("Authorization", "Bearer "+bearer)
+	req.Header.Set("Content-Type", "application/json")
+
+	// Create a client and do the request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("error sending request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check if the HTTP status code is in the 2xx range
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("received non-2xx status code: %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
+func lamportsToSol(lamports uint64) float64 {
+	return float64(lamports) / 1000000000
 }
