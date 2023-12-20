@@ -112,9 +112,8 @@ func sendDiscordWebhook(webhookURL string, message string) {
 
 func createBetterStackIncident(bearer string, summary string, description string) error {
 	url := "https://uptime.betterstack.com/api/v2/incidents"
-	requesterEmail := "bot@raccoons.dev"
+	requesterEmail := os.Getenv("REQUESTER_EMAIL")
 
-	// Struct to hold the request data
 	requestData := struct {
 		Summary        string `json:"summary"`
 		RequesterEmail string `json:"requester_email"`
@@ -125,23 +124,19 @@ func createBetterStackIncident(bearer string, summary string, description string
 		Description:    description,
 	}
 
-	// Marshal the struct into JSON
 	jsonData, err := json.Marshal(requestData)
 	if err != nil {
 		return fmt.Errorf("error marshalling request data: %w", err)
 	}
 
-	// Create a new request
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("error creating request: %w", err)
 	}
 
-	// Add headers to the request
 	req.Header.Set("Authorization", "Bearer "+bearer)
 	req.Header.Set("Content-Type", "application/json")
 
-	// Create a client and do the request
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -149,7 +144,6 @@ func createBetterStackIncident(bearer string, summary string, description string
 	}
 	defer resp.Body.Close()
 
-	// Check if the HTTP status code is in the 2xx range
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("received non-2xx status code: %d", resp.StatusCode)
 	}
