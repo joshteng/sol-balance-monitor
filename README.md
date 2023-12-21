@@ -14,6 +14,7 @@ Github Repo: https://github.com/joshteng/sol-balance-monitor
         image: joshteng/sol-balance-monitor:latest
         environment:
           - ACCOUNTS
+          - BETTERSTACK_HEARTBEAT_URL
           - BETTERSTACK_TOKEN
           - DISCORD_WEBHOOK_URL
           - INTERVAL
@@ -24,6 +25,7 @@ Github Repo: https://github.com/joshteng/sol-balance-monitor
 2. Create env variables
     ```
     INTERVAL=300
+    BETTERSTACK_HEARTBEAT_URL= # setting this will send a heartbeat to Betterstack every min
     DISCORD_WEBHOOK_URL=
     REQUESTER_EMAIL='bot@example.com'
     RPC=https://api.devnet.solana.com

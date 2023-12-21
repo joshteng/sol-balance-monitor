@@ -35,16 +35,39 @@ func main() {
 		log.Fatalf("invalid INTERVAL: %s", err)
 	}
 
-	for _, account := range accounts {
-		checkBalance(rpcUrl, account)
+	checkBalances(rpcUrl, accounts)
+
+	betterStackHeartbeatUrl := os.Getenv("BETTERSTACK_HEARTBEAT_URL")
+	if betterStackHeartbeatUrl != "" {
+		go betterStackHeartbeat(betterStackHeartbeatUrl)
 	}
 
+	monitorAccounts(rpcUrl, accounts, interval)
+}
+
+func monitorAccounts(rpcUrl string, accounts []Accounts, interval uint64) {
 	ticker := time.NewTicker(time.Duration(interval) * time.Second)
 	defer ticker.Stop()
 
 	for range ticker.C {
-		for _, account := range accounts {
-			checkBalance(rpcUrl, account)
+		checkBalances(rpcUrl, accounts)
+	}
+}
+
+func checkBalances(rpcUrl string, accounts []Accounts) {
+	for _, account := range accounts {
+		checkBalance(rpcUrl, account)
+	}
+}
+
+func betterStackHeartbeat(url string) {
+	ticker := time.NewTicker(time.Duration(1) * time.Minute)
+	defer ticker.Stop()
+	for range ticker.C {
+		if resp, err := http.Get(url); err != nil {
+			log.Print(err)
+		} else {
+			log.Print(resp)
 		}
 	}
 }
