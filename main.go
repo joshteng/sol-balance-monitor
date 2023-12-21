@@ -64,7 +64,7 @@ func betterStackHeartbeat(url string) {
 	if _, err := http.Get(url); err != nil {
 		log.Print(err)
 	} else {
-		log.Println("Sent Betterstack heart")
+		log.Println("Sent Betterstack heartbeat")
 	}
 
 	ticker := time.NewTicker(time.Duration(1) * time.Minute)
@@ -73,7 +73,7 @@ func betterStackHeartbeat(url string) {
 		if _, err := http.Get(url); err != nil {
 			log.Print(err)
 		} else {
-			log.Println("Sent Betterstack heart")
+			log.Println("Sent Betterstack heartbeat")
 		}
 	}
 }
