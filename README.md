@@ -3,6 +3,7 @@
 Monitor SOL balance of a given address and sends a Discord Webhook and / or create Betterstack Incident if balance is below set threshold
 
 Github Repo: https://github.com/joshteng/sol-balance-monitor
+Docker Hub: https://hub.docker.com/repository/docker/joshteng/sol-balance-monitor/general
 
 ## Running Based on Docker Hub image:
 1. Create `docker-compose.yml` with the following content
