@@ -13,26 +13,29 @@ Github Repo: https://github.com/joshteng/sol-balance-monitor
       sol-balance-monitor:
         image: joshteng/sol-balance-monitor:latest
         environment:
-          - INTERVAL
-          - MINIMUM_LAMPORTS
-          - RPC
-          - ADDRESS
+          - ACCOUNTS
+          - BETTERSTACK_TOKEN
           - DISCORD_WEBHOOK_URL
+          - INTERVAL
+          - REQUESTER_EMAIL
+          - RPC
         restart: always
     ```
-2. Set environment variables inside `.env` in the same directory as `docker-compose.yml` or simply hardcode it in the Docker compose file
-    ```yml
-    version: '3.8'
-
-    services:
-      sol-balance-monitor:
-        image: joshteng/sol-balance-monitor:latest
-        environment:
-          - INTERVAL=5
-          - MINIMUM_LAMPORTS=50000000000
-          - RPC=https://api.devnet.solana.com
-          - ADDRESS=GUhB2ohrfqWspztgCrQpAmeVFBWmnWYhPcZuwY52WWRe
-          - DISCORD_WEBHOOK_URL=https://
-        restart: always
+2. Create env variables
+    ```
+    INTERVAL=300
+    DISCORD_WEBHOOK_URL=
+    REQUESTER_EMAIL='bot@example.com'
+    RPC=https://api.devnet.solana.com
+    ACCOUNTS='[{"name":"Wallet 1","address":"GUhB2ohrfqWspztgCrQpAmeVFBWmnWYhPcZuwY52WWRe","minLamports":50000000000},{"name":"Wallet 2","address":"GUhB2ohrfqWspztgCrQpAmeVFBWmnWYhPcZuwY52WWRe","minLamports":50000000000}]'
+    BETTERSTACK_TOKEN=""
     ```
 3. then run `docker compose up`
+
+
+## Deploying to Docker Hub
+```sh
+docker build . -t sol-balance-monitor
+docker tag sol-balance-monitor joshteng/sol-balance-monitor:latest # or get the image id from docker dashboard or docker images and run docker tag <image-id> joshteng/sol-balance-monitor:latest
+docker push joshteng/sol-balance-monitor:latest
+```

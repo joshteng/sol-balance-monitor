@@ -15,39 +15,18 @@ import (
 	"github.com/gagliardetto/solana-go/rpc"
 )
 
+type Accounts struct {
+	Name        string `json:"name"`
+	Address     string `json:"address"`
+	MinLamports int64  `json:"minLamports"`
+}
+
 func main() {
-	walletAddressesStr := os.Getenv("ADDRESSES")
-	if walletAddressesStr == "" {
-		fmt.Println("ADDRESSES environment variable is not set")
-		return
-	}
-
-	var walletAddresses []string
-	err := json.Unmarshal([]byte(walletAddressesStr), &walletAddresses)
-	if err != nil {
-		fmt.Printf("Error parsing ADDRESSES: %v\n", err)
-		return
-	}
-
-	var publicKeys []solana.PublicKey
-	for _, address := range walletAddresses {
-		publicKey, err := solana.PublicKeyFromBase58(address)
-		if err != nil {
-			log.Fatalf("Invalid wallet address: %s", err)
-		}
-
-		publicKeys = append(publicKeys, publicKey)
-	}
+	accounts := getAccounts()
 
 	rpcUrl := os.Getenv("RPC")
 	if rpcUrl == "" {
 		rpcUrl = rpc.MainNetBeta_RPC
-	}
-
-	minBalanceStr := os.Getenv("MINIMUM_LAMPORTS")
-	minBalance, err := strconv.ParseUint(minBalanceStr, 10, 64)
-	if err != nil {
-		log.Fatalf("Error converting MINIMUM_LAMPORTS to integer: %s", err)
 	}
 
 	intervalStr := os.Getenv("INTERVAL")
@@ -56,33 +35,57 @@ func main() {
 		log.Fatalf("invalid INTERVAL: %s", err)
 	}
 
-	for _, publicKey := range publicKeys {
-		checkBalance(rpcUrl, publicKey, minBalance)
+	for _, account := range accounts {
+		checkBalance(rpcUrl, account)
 	}
 
 	ticker := time.NewTicker(time.Duration(interval) * time.Second)
 	defer ticker.Stop()
 
 	for range ticker.C {
-		for _, publicKey := range publicKeys {
-			checkBalance(rpcUrl, publicKey, minBalance)
+		for _, account := range accounts {
+			checkBalance(rpcUrl, account)
 		}
 	}
 }
 
-func checkBalance(rpcUrl string, publicKey solana.PublicKey, minBalance uint64) {
+func getAccounts() []Accounts {
+	accountsStr := os.Getenv("ACCOUNTS")
+	if accountsStr == "" {
+		log.Fatalf("ACCOUNTS environment variable is not set")
+	}
+
+	var accounts []Accounts
+	err := json.Unmarshal([]byte(accountsStr), &accounts)
+	if err != nil {
+		log.Fatalf("error parsing ADDRESSES: %v", err)
+	}
+
+	for _, account := range accounts {
+		_, err := solana.PublicKeyFromBase58(account.Address)
+		if err != nil {
+			log.Fatalf("Invalid wallet address: %s", err)
+		}
+	}
+
+	return accounts
+}
+
+func checkBalance(rpcUrl string, account Accounts) {
 	client := rpc.New(rpcUrl)
+
+	publicKey, _ := solana.PublicKeyFromBase58(account.Address)
 
 	balance, err := client.GetBalance(context.Background(), publicKey, rpc.CommitmentConfirmed)
 	if err != nil {
 		log.Printf("Error retrieving balance: %s", err)
 	} else {
 		solBalance := lamportsToSol(balance.Value)
-		fmt.Printf("Balance of %s is %f SOL\n", publicKey.String(), solBalance)
+		fmt.Printf("%s SOL Balance: %f (%s)\n", account.Name, solBalance, publicKey.String())
 
-		if balance.Value < minBalance {
-			summary := fmt.Sprintf("KEEPER LOW BALANCE %s\n", publicKey.String())
-			message := fmt.Sprintf("%s Left %f SOL\n", publicKey.String(), solBalance)
+		if balance.Value < uint64(account.MinLamports) {
+			summary := fmt.Sprintf("%s LOW BALANCE\n", account.Name)
+			message := fmt.Sprintf("%s Left %f SOL (%s)\n", account.Name, solBalance, publicKey.String())
 			discordWebhookUrl := os.Getenv("DISCORD_WEBHOOK_URL")
 			if discordWebhookUrl != "" {
 				sendDiscordWebhook(discordWebhookUrl, message)

@@ -4,9 +4,10 @@ services:
   sol-balance-monitor:
     image: joshteng/sol-balance-monitor:latest
     environment:
-      - INTERVAL
-      - MINIMUM_LAMPORTS
-      - RPC
-      - ADDRESS
+      - ACCOUNTS
+      - BETTERSTACK_TOKEN
       - DISCORD_WEBHOOK_URL
+      - INTERVAL
+      - REQUESTER_EMAIL
+      - RPC
     restart: always
