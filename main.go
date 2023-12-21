@@ -113,7 +113,7 @@ func checkBalance(rpcUrl string, account Accounts) {
 		fmt.Printf("%s SOL Balance: %f (%s)\n", account.Name, solBalance, publicKey.String())
 
 		if balance.Value < uint64(account.MinLamports) {
-			summary := fmt.Sprintf("%s LOW BALANCE\n", account.Name)
+			summary := fmt.Sprintf("%s LOW BALANCE (%s) Left %f SOL\n", account.Name, publicKey.String(), solBalance)
 			message := fmt.Sprintf("%s Left %f SOL (%s)\n", account.Name, solBalance, publicKey.String())
 			discordWebhookUrl := os.Getenv("DISCORD_WEBHOOK_URL")
 			if discordWebhookUrl != "" {
