@@ -1,6 +1,6 @@
 # SOL Balance Monitor
 
-Monitor SOL balance of a given address and sends a Discord Webhook and / or create Betterstack Incident if balance is below set threshold
+Monitor SOL balance of given addresses and sends a Discord Webhook and / or create Betterstack Incident if balance is below set threshold
 
 Github Repo: https://github.com/joshteng/sol-balance-monitor
 
