@@ -21,6 +21,8 @@ type Accounts struct {
 	MinLamports int64  `json:"minLamports"`
 }
 
+var lastAlerts = make(map[string]time.Time)
+
 func main() {
 	accounts := getAccounts()
 
@@ -35,28 +37,34 @@ func main() {
 		log.Fatalf("invalid INTERVAL: %s", err)
 	}
 
-	checkBalances(rpcUrl, accounts)
+	alertIntervalStr := os.Getenv("ALERT_INTERVAL")
+	alertInterval, err := strconv.ParseUint(alertIntervalStr, 10, 64)
+	if err != nil {
+		log.Fatalf("invalid ALERT_INTERVAL: %s", err)
+	}
+
+	checkBalances(rpcUrl, accounts, alertInterval)
 
 	betterStackHeartbeatUrl := os.Getenv("BETTERSTACK_HEARTBEAT_URL")
 	if betterStackHeartbeatUrl != "" {
 		go betterStackHeartbeat(betterStackHeartbeatUrl)
 	}
 
-	monitorAccounts(rpcUrl, accounts, interval)
+	monitorAccounts(rpcUrl, accounts, interval, alertInterval)
 }
 
-func monitorAccounts(rpcUrl string, accounts []Accounts, interval uint64) {
+func monitorAccounts(rpcUrl string, accounts []Accounts, interval uint64, alertInterval uint64) {
 	ticker := time.NewTicker(time.Duration(interval) * time.Second)
 	defer ticker.Stop()
 
 	for range ticker.C {
-		checkBalances(rpcUrl, accounts)
+		checkBalances(rpcUrl, accounts, alertInterval)
 	}
 }
 
-func checkBalances(rpcUrl string, accounts []Accounts) {
+func checkBalances(rpcUrl string, accounts []Accounts, alertInterval uint64) {
 	for _, account := range accounts {
-		checkBalance(rpcUrl, account)
+		checkBalance(rpcUrl, account, alertInterval)
 	}
 }
 
@@ -100,7 +108,7 @@ func getAccounts() []Accounts {
 	return accounts
 }
 
-func checkBalance(rpcUrl string, account Accounts) {
+func checkBalance(rpcUrl string, account Accounts, alertInterval uint64) {
 	client := rpc.New(rpcUrl)
 
 	publicKey, _ := solana.PublicKeyFromBase58(account.Address)
@@ -113,16 +121,21 @@ func checkBalance(rpcUrl string, account Accounts) {
 		fmt.Printf("%s SOL Balance: %f (%s)\n", account.Name, solBalance, publicKey.String())
 
 		if balance.Value < uint64(account.MinLamports) {
-			summary := fmt.Sprintf("%s LOW BALANCE (%s) Left %f SOL\n", account.Name, publicKey.String(), solBalance)
-			message := fmt.Sprintf("%s Left %f SOL (%s)\n", account.Name, solBalance, publicKey.String())
-			discordWebhookUrl := os.Getenv("DISCORD_WEBHOOK_URL")
-			if discordWebhookUrl != "" {
-				sendDiscordWebhook(discordWebhookUrl, message)
-			}
+			lastAlert, hasAlerted := lastAlerts[publicKey.String()]
+			if !hasAlerted || time.Since(lastAlert) > time.Duration(alertInterval)*time.Second {
+				summary := fmt.Sprintf("%s LOW BALANCE (%s) Left %f SOL\n", account.Name, publicKey.String(), solBalance)
+				message := fmt.Sprintf("%s Left %f SOL (%s)\n", account.Name, solBalance, publicKey.String())
+				discordWebhookUrl := os.Getenv("DISCORD_WEBHOOK_URL")
+				if discordWebhookUrl != "" {
+					sendDiscordWebhook(discordWebhookUrl, message)
+				}
 
-			betterStackBearer := os.Getenv("BETTERSTACK_TOKEN")
-			if betterStackBearer != "" {
-				createBetterStackIncident(betterStackBearer, summary, message)
+				betterStackBearer := os.Getenv("BETTERSTACK_TOKEN")
+				if betterStackBearer != "" {
+					createBetterStackIncident(betterStackBearer, summary, message)
+				}
+
+				lastAlerts[publicKey.String()] = time.Now()
 			}
 		}
 	}
