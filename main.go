@@ -64,10 +64,10 @@ func betterStackHeartbeat(url string) {
 	ticker := time.NewTicker(time.Duration(1) * time.Minute)
 	defer ticker.Stop()
 	for range ticker.C {
-		if resp, err := http.Get(url); err != nil {
+		if _, err := http.Get(url); err != nil {
 			log.Print(err)
 		} else {
-			log.Print(resp)
+			log.Println("Sent Betterstack heart")
 		}
 	}
 }
