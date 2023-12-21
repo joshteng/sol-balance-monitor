@@ -5,6 +5,7 @@ services:
     build: .
     environment:
       - ACCOUNTS
+      - BETTERSTACK_HEARTBEAT_URL
       - BETTERSTACK_TOKEN
       - DISCORD_WEBHOOK_URL
       - INTERVAL
