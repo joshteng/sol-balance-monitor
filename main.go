@@ -61,6 +61,12 @@ func checkBalances(rpcUrl string, accounts []Accounts) {
 }
 
 func betterStackHeartbeat(url string) {
+	if _, err := http.Get(url); err != nil {
+		log.Print(err)
+	} else {
+		log.Println("Sent Betterstack heart")
+	}
+
 	ticker := time.NewTicker(time.Duration(1) * time.Minute)
 	defer ticker.Stop()
 	for range ticker.C {
