@@ -118,7 +118,8 @@ func checkBalance(rpcUrl string, account Accounts, alertInterval uint64) {
 		log.Printf("Error retrieving balance: %s", err)
 	} else {
 		solBalance := lamportsToSol(balance.Value)
-		fmt.Printf("%s SOL Balance: %f (%s)\n", account.Name, solBalance, publicKey.String())
+		minBalance := lamportsToSol(uint64(account.MinLamports))
+		fmt.Printf("%s SOL Balance: %f; min: %f (%s)\n", account.Name, solBalance, minBalance, publicKey.String())
 
 		if balance.Value < uint64(account.MinLamports) {
 			lastAlert, hasAlerted := lastAlerts[publicKey.String()]
